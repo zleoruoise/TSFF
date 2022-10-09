@@ -227,7 +227,9 @@ class monthly_dataset(Dataset):
         # if obs is missing
         for key,value in result_df.items():
             length_diff = value.shape[0] - data_length
-            if length_diff < 0:
+            if abs(length_diff) > 2:
+                raise Exception("more than one error")
+            elif length_diff < 0:
                 time_diff = value['real_time'].diff(periods = 1)
                 diff_idx = np.where(time_diff > self.time_interval * 1000 )[0]
                 if len(diff_idx) == 0: # if the last row is missing
@@ -456,58 +458,71 @@ class monthly_dataset(Dataset):
         Returns:
             Tuple[Dict[str, torch.Tensor], torch.Tensor]: x and y for model
         """
-        start_time = self.index[idx]
-        end_time = start_time + (self.encoder_length + self.decoder_length + 1) * 1000 * self.time_interval
-        date_start = datetime.utcfromtimestamp(start_time//1000).strftime('%Y%m')
-        date_before = (datetime.utcfromtimestamp(start_time//1000) - dt.timedelta(days=1)).strftime('%Y%m')
-        date_end = datetime.utcfromtimestamp(end_time//1000).strftime('%Y%m')
+        try:
+            start_time = self.index[idx]
+            end_time = start_time + (self.encoder_length + self.decoder_length + 1) * 1000 * self.time_interval
+            date_start = datetime.utcfromtimestamp(start_time//1000).strftime('%Y%m')
+            date_before = (datetime.utcfromtimestamp(start_time//1000) - dt.timedelta(days=1)).strftime('%Y%m')
+            date_end = datetime.utcfromtimestamp(end_time//1000).strftime('%Y%m')
 
-        # load dataframe data for selected index
-        if date_start == date_end:
-            df_dict = self.load_dfs([date_start])
-        elif date_start != date_end :
-            df_dict = self.load_dfs([date_start, date_end])
-        else:
-            assert 1
-                #df_dict = self.load_dfs([date_before,date_end])
-        
+            # load dataframe data for selected index
+            if date_start == date_end:
+                df_dict = self.load_dfs([date_start])
+            elif date_start != date_end :
+                df_dict = self.load_dfs([date_start, date_end])
+            else:
+                assert 1
+                    #df_dict = self.load_dfs([date_before,date_end])
+            
 
 
-        # apply transformation here: TO-DO: make compose function 
-        # current setting 
-        #. 0 crop dataframe matching with the index
-        #. 1 get point-pillar like formatting
-        #. 1-1 split cov and target
-        #. 2 get mid points add
-        #. 3 transform the target function 
-        #. 4 concat different pairs together. 
-        
-        df_dict = self.select_columns(df_dict)
-        mean_data = self.diff_price(df_dict) 
-        mean_data = self.cal_std(mean_data)
-        df_dict = self.crop_df(df_dict,start_time,end_time)
-        df_dict, target, target_base_price = self.target_split(df_dict) # also doing target generation - but for decoder input
-        df_dict = self.scaler(df_dict)
-        df_list, time_stamp = self.time_split(df_dict)
-        #df_list,coords, num_points = self.pointnet_transform(df_dict,start_time,end_time)
-        df_list = self.regular_concat(df_dict)
-        #time_stamp = self.regular_concat(time_stamp)
-        df_list = self.convert_np2ts(df_list) # later change to convert all items in the dict  - or selected 
-        time_stamp = self.convert_np2ts(time_stamp)
-        #coords = self.convert_np2ts(coords)
-        #num_points = self.convert_np2ts(num_points)
-        target = self.triple_barrier(target_base_price)
+            # apply transformation here: TO-DO: make compose function 
+            # current setting 
+            #. 0 crop dataframe matching with the index
+            #. 1 get point-pillar like formatting
+            #. 1-1 split cov and target
+            #. 2 get mid points add
+            #. 3 transform the target function 
+            #. 4 concat different pairs together. 
+            
+            df_dict = self.select_columns(df_dict)
+            mean_data = self.diff_price(df_dict) 
+            mean_data = self.cal_std(mean_data)
+            df_dict = self.crop_df(df_dict,start_time,end_time)
+            df_dict, target, target_base_price = self.target_split(df_dict) # also doing target generation - but for decoder input
+            df_dict = self.scaler(df_dict)
+            df_list, time_stamp = self.time_split(df_dict)
+            #df_list,coords, num_points = self.pointnet_transform(df_dict,start_time,end_time)
+            df_list = self.regular_concat(df_dict)
+            #time_stamp = self.regular_concat(time_stamp)
+            df_list = self.convert_np2ts(df_list) # later change to convert all items in the dict  - or selected 
+            time_stamp = self.convert_np2ts(time_stamp)
+            #coords = self.convert_np2ts(coords)
+            #num_points = self.convert_np2ts(num_points)
+            target = self.triple_barrier(target_base_price)
 
-        assert df_list.shape[0] == self.encoder_length - 1
+            assert df_list.shape[0] == self.encoder_length - 1
 
-        # target - torch.Tensor - [B,1]
-        # df_dict - torch.Tensor - [B,T,M,2*pair+1]
-        return dict(x_data = df_list, 
-                    y_data = target,
-                    time_stamp = time_stamp,
-                    #coords = coords,
-                    #num_points = num_points,
-                    )
+            # target - torch.Tensor - [B,1]
+            # df_dict - torch.Tensor - [B,T,M,2*pair+1]
+            return dict(x_data = df_list, 
+                        y_data = target,
+                        time_stamp = time_stamp,
+                        ignore_flag = False 
+                        #coords = coords,
+                        #num_points = num_points,
+                        )
+        except:
+            return dict(x_data = torch.randn((self.encoder_length-1,
+                                            len(self.pairs) * len(self.selected_cols)),
+                                            dtype = torch.float32), 
+                        y_data = torch.randn((1), dtype = torch.float32),
+                        time_stamp = torch.randn((self.encoder_length -1), dtype= torch.float32),
+                        ignore_flag = True 
+                        #coords = coords,
+                        #num_points = num_points,
+                        )
+
 
 
     def _collate_fn(
@@ -526,11 +541,14 @@ class monthly_dataset(Dataset):
         # collate function for dataloader
         # lengths
 
-        x_data = torch.stack([batch['x_data'] for batch in batches])
-        time_stamp = torch.stack([batch['time_stamp'] for batch in batches])
+        x_data = torch.stack([batch['x_data'] for batch in batches if batch['ignore_flag'] is not True])
+        # debug code
+        if x_data.shape[0] != len(batches):
+            print('more than two errors')
+        time_stamp = torch.stack([batch['time_stamp'] for batch in batches if batch['ignore_flag'] is not True])
         #coords = torch.stack([batch['coords'] for batch in batches])
         #num_points = torch.stack([batch['num_points'] for batch in batches])
-        y_data = torch.stack([batch['y_data'] for batch in batches])
+        y_data = torch.stack([batch['y_data'] for batch in batches if batch['ignore_flag'] is not True])
 
         return dict(x_data = x_data, 
                     y_data = y_data,
