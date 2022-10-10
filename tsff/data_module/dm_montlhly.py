@@ -32,7 +32,7 @@ from spconv.utils import Point2VoxelCPU1d
 from cumm import tensorview as tv
 
 from tsff.data_module.utils.builder import build_pipeline,DATASETS
-from tsff.data_module.utils.compose  import Compose
+from tsff.data_module.pipelines.compose  import Compose
 
 @DATASETS.register_module()
 class monthly_dataset(Dataset):
@@ -71,6 +71,7 @@ class monthly_dataset(Dataset):
         batch_size: int = 8,
         mean: List[float] = [0,0,0,0,10],
         std: List[float] = [0,0,0,0,100],
+        pipeline: List[Dict[str,str]] = [],
 
     ):
         """
@@ -108,21 +109,22 @@ class monthly_dataset(Dataset):
 
 
         # headers
-        if data_type == 'ohlcv':
-            self.headers =('real_time', 'open', 'high','low','close','volume',
-            'Close_time','Quote_asset_volumne','Number_of_trades','Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore') 
-            self.selected_headers =  ("real_time","open","close","high","low","volume")
-            self.selected_cols = ("open","close","high","low","volume")
-        elif data_type == 'aggTrade':
-            # change later 
-            self.headers = ['Agg_tradeId','Price','Quantity','First_tradeID','Last_tradeID','Timestamp','maker','bestPrice'] # copy from github
-            self.selected_headers= ['Timestamp', 'Price', 'Quantity']
-        else:
-            AssertionError('data_type not implemented')
+        #if data_type == 'ohlcv':
+        #    self.headers =('real_time', 'open', 'high','low','close','volume',
+        #    'Close_time','Quote_asset_volumne','Number_of_trades','Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore') 
+        #    self.selected_headers =  ("real_time","open","close","high","low","volume")
+        #    self.selected_cols = ("open","close","high","low","volume")
+        #elif data_type == 'aggTrade':
+        #    # change later 
+        #    self.headers = ['Agg_tradeId','Price','Quantity','First_tradeID','Last_tradeID','Timestamp','maker','bestPrice'] # copy from github
+        #    self.selected_headers= ['Timestamp', 'Price', 'Quantity']
+        #else:
+        #    AssertionError('data_type not implemented')
 
-        # filter data
+        ## filter data
 
         self.index = self._construct_index()
+        self.pipeline = Compose(pipeline)
 
         # ToDo: seperate classes for each transformations - refactoring
         # set transforms 
@@ -192,262 +194,7 @@ class monthly_dataset(Dataset):
         """
         lagged_time = self.encoder_length + self.decoder_length 
         return len(self.index) - int(lagged_time)
-
-    def load_dfs(self,dates):
-        df_dict = {}
-        for pair in self.pairs:
-            df_dict.update({pair : self.load_df_m_kl(dates,pair)})
-
-        return df_dict
-
-
-    def load_df_m_kl(self,dates,pair):
-        assert len(dates) > 0
-        cur_dfs = []
-        for date in dates:
-            cur_date = f"{pair}-1m-{date[:4]}-{date[4:6]}.csv"
-            data_path = os.path.join(self.data_path,pair,'1m',cur_date)
-            cur_df = pd.read_csv(data_path)
-            cur_df.columns = self.headers 
-            cur_dfs.append(cur_df)
-        df = pd.concat(cur_dfs, axis = 0, ignore_index = True)
-
-        
-        return df
-
-
-    def crop_df(self,data:Dict[str,pd.DataFrame],start_time,end_time):
-        result_df = {}
-        data_length = self.encoder_length + self.decoder_length + 1
-        for key,value in data.items():
-            cur_df = value.loc[(value['real_time'] >= start_time) &
-                                (value['real_time'] < end_time),:]
-            result_df.update({key : cur_df})
-
-        # if obs is missing
-        for key,value in result_df.items():
-            length_diff = value.shape[0] - data_length
-            if abs(length_diff) > 2:
-                raise Exception("more than one error")
-            elif length_diff < 0:
-                time_diff = value['real_time'].diff(periods = 1)
-                diff_idx = np.where(time_diff > self.time_interval * 1000 )[0]
-                if len(diff_idx) == 0: # if the last row is missing
-                    diff_idx = [value.shape[0]] 
-                else: # more precise - only consider when found error is one way only
-                    diff_idx = diff_idx[:abs(length_diff)]
-                for i in diff_idx:
-                    new_value = pd.concat([value.iloc[:i,:],
-                                            value.iloc[i:i+1,:],
-                                            value.iloc[i:].set_index( 
-                                                value.index[i:]+1)])
-                    result_df[key] = new_value
-            elif length_diff > 0 :
-                time_diff = value['real_time'].diff(periods = 1)
-                diff_idx = np.where(time_diff < self.time_interval * 1000 )
-                for i in diff_idx:
-                    new_value = pd.concat([value.iloc[:diff_idx,:],
-                                            value.iloc[diff_idx+1:].set_index( 
-                                                value.index[diff_idx:]-1)])
-                    result_df[key] = new_value
-
-                    
-
-
-
-        return result_df
-
-    def convert_df2ts(self,data:Dict[str,pd.DataFrame]):
-        result_data = []
-        for key,value in data.itmes():
-            cur_ts = torch.from_numpy(value.values, dtype = torch.float32)
-            result_data.append(result_data)
-        return result_data
     
-    def pointnet_transform(self,data:List[pd.DataFrame],start_time,end_time):
-        # cpu transform
-        time_interval = self.time_interval # 1 second interval not 1 ms
-        start_time *= 0.001
-        end_time *= 0.001
-        voxel_generator = Point2VoxelCPU1d(vsize_xyz=[time_interval],
-                                           coors_range_xyz=[start_time,end_time],
-                                           num_point_features = len(self.pairs)*3, # neads to be calculated later 
-                                           max_num_voxels= int((end_time-start_time)/time_interval))
-
-        voxels, coords, num_points = [],[],[]        
-        for datum in data:
-            time_col_loc = datum.columns.get_loc('Timestamp')
-            datum = datum.to_numpy()
-            datum = np.transpose
-            tv_datum = tv.from_numpy(datum)
-            voxels_tv, indices_tv, num_p_in_voxel = voxel_generator.point_to_voxel(tv_datum)
-            voxels_tv, indices_tv, num_p_in_voxel = voxels_tv.numpy(), indices_tv.numpy(), num_p_in_voxel.numpy() 
-            voxels.append(voxels_tv)
-            coords.append(indices_tv)
-            num_points.append(num_p_in_voxel)
-
-        return [voxels, coords, num_points]
-    
-    def time_split(self,data:Dict[str,pd.DataFrame]):
-        '''
-        Time stamp should be always on the 0th column - set by select df
-        '''
-        result_data = dict()
-        result_time = dict()
-        for key,datum in data.items():
-            time_stamp ,new_data = datum.loc[:,'real_time'],datum.loc[:,self.selected_cols] 
-            result_data.update({key:new_data})
-            result_time.update({key:time_stamp})
-
-        return result_data,time_stamp
-
-    def convert_np2ts(self, data:pd.DataFrame):
-        new_data = torch.from_numpy(data.to_numpy().astype(np.float32))
-
-        return new_data 
-
-
-    def convert_np2ts_pointnet(self, data:List[List[np.array]]):
-        voxels, coords, num_points = data
-        voxel = np.concatenate(*voxels, axis = -1)
-        coord = np.concatenate(*coords, axis = -1)
-        num_point = np.concatenate(*num_points,axis =-1 )
-
-        voxel_ts = torch.from_numpy(voxel)
-        coord_ts = torch.from_numpy(coord)
-        num_point_ts = torch.from_numpy(num_point)
-
-        return [voxel_ts, coord_ts, num_point_ts]
-
-    def select_columns(self,data:Dict[str,pd.DataFrame]):
-        # make sure self.selected_header - time_stamp always on 0th col - 
-        # later used by time_split
-        result_df = {}
-
-        for pair,datum in data.items():
-            cur_data = datum.loc[:,self.selected_headers]
-            result_df.update({pair : cur_data})
-
-        return result_df
-    
-    def scaler(self,df_dict:Dict[str,pd.DataFrame]):
-
-        selected_col = ['open','close','high','low','volume'] # this should be in init 
-        result_df = {}
-        for pair,datum in df_dict.items():
-            scaler = StandardScaler()
-            scaler.mean_ = [self.mean[pair][cur_col] for cur_col in selected_col]
-            scaler.scale_ = [self.std[pair][cur_col] for cur_col in selected_col] 
-            datum.loc[:,selected_col] = scaler.transform(datum.loc[:,selected_col].to_numpy())
-            result_df.update({pair : datum})
-        return result_df
-
-    def diff_price(self,df_dict:Dict[str,pd.DataFrame]):
-        selected_col = ['open','close','high','low','volume'] # this should be in init 
-        result_df = {}
-        for pair,datum in df_dict.items():
-            ori_cols = list(datum.columns)
-            cur_cols = [i for i in ori_cols if i not in selected_col]
-            new_df = datum.loc[:,selected_col].diff(axis= 0,periods =1)
-            new_df = pd.concat([new_df.iloc[1:,:],datum.loc[datum.index[1]:,cur_cols]],axis = 1)
-            result_df.update({pair : new_df})
-
-        return result_df
-
-    def triple_barrier(self,data,barrier_width = 0.01):
-        # consider encoder only product
-        assert len(self.target_pair) == 1
-        cur_data= data[self.target_pair[0]].loc[:,'open'].values
-        #base_value = base_data[self.target_pair[0]]['open'] # this is series -> float 
-        cur_data = cur_data.reshape(-1,1)
-        # to-Do: change for enc-dec model
-        horizon_value = cur_data[1:]
-        base_value = cur_data[0].reshape(1,1)
-
-        upper = np.where(horizon_value > base_value * (1 + barrier_width),1,0)
-        lower = np.where(horizon_value < base_value * (1 - barrier_width),1,0)
-
-        upper_a1 = np.argmax(upper)
-        lower_a1 = np.argmax(lower)
-
-        if upper_a1 > lower_a1:
-            return torch.tensor([2], dtype = torch.float32)
-        elif upper_a1 < lower_a1:
-            return torch.tensor([0], dtype = torch.float32)
-        else:
-            return torch.tensor([1], dtype = torch.float32)
-    
-        
-    def target_split(self,df_dict:Dict[str,pd.DataFrame]):
-        # cov_result_df: [encoder_length,selected_head]
-        # target_result_df: [decoder_length + 1,selected_head]
-        encoder_length = self.encoder_length
-        decoder_length = self.decoder_length
-
-        cov_result_df = {}
-        target_result_df = {}
-        target_base_price= {}
-
-        def diff_price(df_dict:Dict[str,pd.DataFrame]):
-            selected_col = ['open','close','high','low','volume'] # this should be in init 
-            result_df = {}
-            for pair,datum in df_dict.items():
-                ori_cols = list(datum.columns)
-                cur_cols = [i for i in ori_cols if i not in selected_col]
-                new_df = datum.loc[:,selected_col].diff(axis= 0,periods =1)
-                new_df = pd.concat([new_df.iloc[1:,:],datum.loc[datum.index[1]:,cur_cols]],axis = 1)
-                result_df.update({pair : new_df})
-
-            return result_df
-
-        for pair,datum in df_dict.items():
-            new_df = datum.iloc[:-(decoder_length+1),:]
-            cov_result_df.update({pair : new_df})
-
-        # diff base price in encoder data
-        cov_result_df = diff_price(cov_result_df)
-
-        for pair,datum in df_dict.items():
-            new_df = datum.iloc[-(decoder_length+2):,:]
-            new_df_base = datum.iloc[-(decoder_length+2):,:]
-
-            target_result_df.update({pair : new_df})
-            target_base_price.update({pair : new_df_base})
-
-        target_result_df= diff_price(target_result_df)
-        #target_base_price = diff_price(target_base_price)
-        
-        return cov_result_df, target_result_df, target_base_price
-
-    def cal_std(self,df_dict:Dict[str,pd.DataFrame]):
-        self.mean = dict()
-        self.std = dict()
-        for key,value in df_dict.items():
-            mean = dict()
-            std = dict() 
-            for col in value.columns:
-                if col == 'real_time':
-                    continue
-                mean.update({col:value[col].mean()})
-                std.update({col:value[col].std()})
-            self.mean.update({key:mean})
-            self.std.update({key:std})
-
-        return df_dict
-
-    def regular_concat(self,data:Dict[str,pd.DataFrame]):
-        # make sure self.selected_header - time_stamp always on 0th col - 
-        # later used by time_split
-        
-        df_list = []
-        for pair,datum in data.items():
-            cur_data = datum.loc[:,self.selected_cols]
-            df_list.append(cur_data.reset_index(drop = True))
-        result_df = pd.concat(df_list, axis = 1, ignore_index= True)
-
-        return result_df
-
-
     def __getitem__(self, idx: int) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
         """
         Get sample for model
@@ -460,21 +207,7 @@ class monthly_dataset(Dataset):
         """
         try:
             start_time = self.index[idx]
-            end_time = start_time + (self.encoder_length + self.decoder_length + 1) * 1000 * self.time_interval
-            date_start = datetime.utcfromtimestamp(start_time//1000).strftime('%Y%m')
-            date_before = (datetime.utcfromtimestamp(start_time//1000) - dt.timedelta(days=1)).strftime('%Y%m')
-            date_end = datetime.utcfromtimestamp(end_time//1000).strftime('%Y%m')
-
-            # load dataframe data for selected index
-            if date_start == date_end:
-                df_dict = self.load_dfs([date_start])
-            elif date_start != date_end :
-                df_dict = self.load_dfs([date_start, date_end])
-            else:
-                assert 1
-                    #df_dict = self.load_dfs([date_before,date_end])
-            
-
+            data = {'start_time':start_time}
 
             # apply transformation here: TO-DO: make compose function 
             # current setting 
@@ -485,36 +218,23 @@ class monthly_dataset(Dataset):
             #. 3 transform the target function 
             #. 4 concat different pairs together. 
             
-            df_dict = self.select_columns(df_dict)
-            mean_data = self.diff_price(df_dict) 
-            mean_data = self.cal_std(mean_data)
-            df_dict = self.crop_df(df_dict,start_time,end_time)
-            df_dict, target, target_base_price = self.target_split(df_dict) # also doing target generation - but for decoder input
-            df_dict = self.scaler(df_dict)
-            df_list, time_stamp = self.time_split(df_dict)
-            #df_list,coords, num_points = self.pointnet_transform(df_dict,start_time,end_time)
-            df_list = self.regular_concat(df_dict)
-            #time_stamp = self.regular_concat(time_stamp)
-            df_list = self.convert_np2ts(df_list) # later change to convert all items in the dict  - or selected 
-            time_stamp = self.convert_np2ts(time_stamp)
-            #coords = self.convert_np2ts(coords)
-            #num_points = self.convert_np2ts(num_points)
-            target = self.triple_barrier(target_base_price)
-
-            assert df_list.shape[0] == self.encoder_length - 1
-
             # target - torch.Tensor - [B,1]
             # df_dict - torch.Tensor - [B,T,M,2*pair+1]
-            return dict(x_data = df_list, 
-                        y_data = target,
-                        time_stamp = time_stamp,
-                        ignore_flag = False 
-                        #coords = coords,
-                        #num_points = num_points,
-                        )
+            data = self.pipeline(data)
+            data['ignore_flag'] = False
+            if data['x_data'].shape[0] != self.encoder_length -1:
+                raise Exception("more than two errors")
+            return data
+                        #dict(x_data = df_list, 
+                        #    y_data = target,
+                        #    time_stamp = time_stamp,
+                        #    ignore_flag = False 
+                        #    #coords = coords,
+                        #    #num_points = num_points,
+                        #    )
         except:
             return dict(x_data = torch.randn((self.encoder_length-1,
-                                            len(self.pairs) * len(self.selected_cols)),
+                                            len(self.pairs) * 5),
                                             dtype = torch.float32), 
                         y_data = torch.randn((1), dtype = torch.float32),
                         time_stamp = torch.randn((self.encoder_length -1), dtype= torch.float32),
@@ -541,6 +261,7 @@ class monthly_dataset(Dataset):
         # collate function for dataloader
         # lengths
 
+        # there is an error when all batches are False
         x_data = torch.stack([batch['x_data'] for batch in batches if batch['ignore_flag'] is not True])
         # debug code
         if x_data.shape[0] != len(batches):
@@ -548,7 +269,7 @@ class monthly_dataset(Dataset):
         time_stamp = torch.stack([batch['time_stamp'] for batch in batches if batch['ignore_flag'] is not True])
         #coords = torch.stack([batch['coords'] for batch in batches])
         #num_points = torch.stack([batch['num_points'] for batch in batches])
-        y_data = torch.stack([batch['y_data'] for batch in batches if batch['ignore_flag'] is not True])
+        y_data = torch.stack([batch['target'] for batch in batches if batch['ignore_flag'] is not True])
 
         return dict(x_data = x_data, 
                     y_data = y_data,
@@ -637,11 +358,4 @@ if __name__ == "__main__":
     max_obs = 100
     batch_size = 8
 
-    cur_dataset = base_dataset(**kwargs)
-    train_dataloader = cur_dataset.to_dataloader()
-    for i,j in enumerate(train_dataloader):
-        print(i)
-        print(j)
-
-        k = 100
 

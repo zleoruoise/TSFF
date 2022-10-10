@@ -2,6 +2,10 @@
 
 # General variable 
 
+from base64 import decode
+from symbol import encoding_decl
+
+
 d_model = 128
 n_head = 8
 dropout = 0.1
@@ -16,6 +20,8 @@ log_interval = 10
 custom_lr_scheduler = "CosineAnnealingWarmRestarts"
 
 pairs = ['BTCUSDT','ETHUSDT',"BNBUSDT","XRPUSDT","ADAUSDT"]
+target_pair = ['ETHUSDT']
+selected_cols = ("open","close","high","low","volume")
 lstm_layers_num = 3
 
 # forecast type
@@ -23,12 +29,49 @@ forecast_type = 'reg'
 
 # work_dir - should be full path
 work_dir = '/home/ycc/TSFF/work_dir'
+train_pipeline = [dict(type = 'set_time', 
+                       encoder_length = encoder_length + 1,
+                       decoder_length = decoder_length,
+                       time_interval = 60),
+                  dict(type = 'load_dfs',pairs =  pairs,
+                        data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
+                        headers = ('real_time', 'open', 'high','low','close','volume',
+                                   'Close_time','Quote_asset_volumne','Number_of_trades',
+                                   'Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore'),
+                        ),
+                  dict(type = 'select_columns',
+                       selected_headers =  ("real_time","open",
+                            "close","high","low","volume")),
+#                  dict(type = 'diff_price',
+#                        selected_cols = selected_cols),
+#                  dict(type = 'cal_std'), # need to update cal std
+                  dict(type = 'crop_df',
+                        encoder_length = encoder_length + 1,
+                        decoder_length = decoder_length,
+                        time_interval = 60),
+                  dict(type = 'target_split',
+                        selected_cols = selected_cols,
+                        encoder_length = encoder_length + 1,
+                        decoder_length = decoder_length),
+#                  dict(type = 'scaler',
+#                        value_pickle = ''),
+                  dict(type = 'time_split',
+                        selected_cols = selected_cols),
+                  dict(type = 'regular_concat',
+                        selected_cols = selected_cols),
+                  dict(type = 'convert_np2ts',
+                        keys = ['x_data','time_stamp']),
+                  dict(type = 'triple_barrier',
+                        selected_cols = selected_cols,
+                        target_pair = target_pair,
+                        barrier_width = 0.01)
+]
 
 # model settings
 dataset = dict(
     type = 'monthly_dataset',
     data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
-    pairs = ['BTCUSDT','ETHUSDT',"BNBUSDT","XRPUSDT","ADAUSDT"],
+    pairs = pairs,
     target_pair = ['ETHUSDT'],
     start_date = "20210101",
     end_date = "20220331",
@@ -40,6 +83,7 @@ dataset = dict(
     data_type = 'ohlcv',
     #barrier_width =  0.002,
     batch_size = 16,
+    pipeline = train_pipeline,
 )
 
 # trainer settings
