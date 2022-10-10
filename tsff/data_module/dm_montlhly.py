@@ -72,6 +72,7 @@ class monthly_dataset(Dataset):
         mean: List[float] = [0,0,0,0,10],
         std: List[float] = [0,0,0,0,100],
         pipeline: List[Dict[str,str]] = [],
+        num_workers = 4,
 
     ):
         """
@@ -106,6 +107,8 @@ class monthly_dataset(Dataset):
         # 
         self.mean = mean
         self.std = std
+
+        self.num_workers = num_workers
 
 
         # headers
@@ -333,6 +336,7 @@ class monthly_dataset(Dataset):
             collate_fn=self._collate_fn,
             batch_size=self.batch_size,
             batch_sampler=batch_sampler,
+            num_workers = self.num_workers
         )
         default_kwargs.update(kwargs)
         kwargs = default_kwargs

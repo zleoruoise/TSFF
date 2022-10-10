@@ -84,6 +84,7 @@ dataset = dict(
     #barrier_width =  0.002,
     batch_size = 16,
     pipeline = train_pipeline,
+    num_workers = 24,
 )
 
 # trainer settings
