@@ -14,3 +14,5 @@ from .set_time import set_time
 from .target_split import target_split
 from .time_split import time_split
 from .triple_barrier import triple_barrier
+
+from .load_memory import load_memory

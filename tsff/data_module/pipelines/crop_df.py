@@ -34,7 +34,7 @@ class crop_df:
                 time_diff = value['real_time'].diff(periods = 1)
                 diff_idx = np.where(time_diff > self.time_interval * 1000 )[0]
                 if len(diff_idx) == 0: # if the last row is missing
-                    diff_idx = [value.shape[0]] 
+                    diff_idx = [value.shape[0]-1] 
                 else: # more precise - only consider when found error is one way only
                     diff_idx = diff_idx[:abs(length_diff)]
                 for i in diff_idx:

@@ -73,6 +73,7 @@ class monthly_dataset(Dataset):
         std: List[float] = [0,0,0,0,100],
         pipeline: List[Dict[str,str]] = [],
         num_workers = 4,
+        load_memory = None,
 
     ):
         """
@@ -109,6 +110,14 @@ class monthly_dataset(Dataset):
         self.std = std
 
         self.num_workers = num_workers
+        self.memory_data = None
+        if load_memory is not None:
+            load_memory.update(start_time = self.start_date)
+            load_memory.update(end_time = self.end_date)
+            load_data_func = build_pipeline(load_memory)
+            self.memory_data = load_data_func()
+            print('memory_data_debug')
+            
 
 
         # headers
@@ -176,9 +185,9 @@ class monthly_dataset(Dataset):
         """
         # file
         start_time = datetime.strptime(self.start_date, "%Y%m%d")
-        start_time = time.mktime(start_time.timetuple()) - GLOBAL_TIMEDIFF
+        start_time = time.mktime(start_time.timetuple()) + GLOBAL_TIMEDIFF
         end_time = datetime.strptime(self.end_date, "%Y%m%d") + dt.timedelta(days=1)
-        end_time = time.mktime(end_time.timetuple()) - GLOBAL_TIMEDIFF
+        end_time = time.mktime(end_time.timetuple()) + GLOBAL_TIMEDIFF
 
         start_time *= 1000
         end_time *= 1000
@@ -212,35 +221,24 @@ class monthly_dataset(Dataset):
             start_time = self.index[idx]
             data = {'start_time':start_time}
 
-            # apply transformation here: TO-DO: make compose function 
-            # current setting 
-            #. 0 crop dataframe matching with the index
-            #. 1 get point-pillar like formatting
-            #. 1-1 split cov and target
-            #. 2 get mid points add
-            #. 3 transform the target function 
-            #. 4 concat different pairs together. 
-            
-            # target - torch.Tensor - [B,1]
-            # df_dict - torch.Tensor - [B,T,M,2*pair+1]
+            if self.memory_data is not None:
+                data.update(dict(x_data = self.memory_data))
+
             data = self.pipeline(data)
             data['ignore_flag'] = False
             if data['x_data'].shape[0] != self.encoder_length -1:
                 raise Exception("more than two errors")
+            if data['time_stamp'].shape[0] != self.encoder_length -1:
+                raise Exception("more than two errors")
+            if data['target'].shape[0] != 1:
+                raise Exception("more than two errors")
             return data
-                        #dict(x_data = df_list, 
-                        #    y_data = target,
-                        #    time_stamp = time_stamp,
-                        #    ignore_flag = False 
-                        #    #coords = coords,
-                        #    #num_points = num_points,
-                        #    )
         except:
-            return dict(x_data = torch.randn((self.encoder_length-1,
+            return dict(x_data = torch.zeros((self.encoder_length-1,
                                             len(self.pairs) * 5),
                                             dtype = torch.float32), 
-                        y_data = torch.randn((1), dtype = torch.float32),
-                        time_stamp = torch.randn((self.encoder_length -1), dtype= torch.float32),
+                        target = torch.zeros((1), dtype = torch.float32),
+                        time_stamp = torch.zeros((self.encoder_length -1), dtype= torch.float32),
                         ignore_flag = True 
                         #coords = coords,
                         #num_points = num_points,
@@ -265,14 +263,12 @@ class monthly_dataset(Dataset):
         # lengths
 
         # there is an error when all batches are False
-        x_data = torch.stack([batch['x_data'] for batch in batches if batch['ignore_flag'] is not True])
+        x_data = torch.stack([batch['x_data'] for batch in batches])# if batch['ignore_flag'] is not True]
         # debug code
-        if x_data.shape[0] != len(batches):
-            print('more than two errors')
-        time_stamp = torch.stack([batch['time_stamp'] for batch in batches if batch['ignore_flag'] is not True])
+        time_stamp = torch.stack([batch['time_stamp'] for batch in batches])# if batch['ignore_flag'] is not True])
         #coords = torch.stack([batch['coords'] for batch in batches])
         #num_points = torch.stack([batch['num_points'] for batch in batches])
-        y_data = torch.stack([batch['target'] for batch in batches if batch['ignore_flag'] is not True])
+        y_data = torch.stack([batch['target'] for batch in batches])# if batch['ignore_flag'] is not True])
 
         return dict(x_data = x_data, 
                     y_data = y_data,
