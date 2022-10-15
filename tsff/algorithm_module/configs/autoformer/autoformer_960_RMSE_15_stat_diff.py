@@ -44,11 +44,13 @@ train_pipeline = [dict(type = 'set_time',
                             "close","high","low","volume")),
 #                  dict(type = 'diff_price',
 #                        selected_cols = selected_cols),
-#                  dict(type = 'cal_std'), # need to update cal std
                   dict(type = 'crop_df',
                         encoder_length = encoder_length + 1,
                         decoder_length = decoder_length,
                         time_interval = 60),
+                  dict(type = 'scaler',
+                        pickle_path = '/home/ycc/TSFF/scaler_202210.pkl',
+                        selected_cols = selected_cols), 
                   dict(type = 'target_split',
                         selected_cols = selected_cols,
                         encoder_length = encoder_length + 1,
@@ -64,7 +66,7 @@ train_pipeline = [dict(type = 'set_time',
                   dict(type = 'triple_barrier',
                         selected_cols = selected_cols,
                         target_pair = target_pair,
-                        barrier_width = 0.01)
+                        barrier_width = 0.001)
 ]
 
 # model settings
@@ -85,6 +87,7 @@ dataset = dict(
     batch_size = 16,
     pipeline = train_pipeline,
     num_workers =22, 
+    selected_cols = selected_cols,
     load_memory = dict(type = 'load_memory',pairs =  pairs,
                         data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
                         headers = ('real_time', 'open', 'high','low','close','volume',
@@ -155,7 +158,7 @@ model = dict(
         moving_avg = 25
     ),
     post_attention = dict(
-        type = 'dec_post_attention',
+        type = 'single_mlp_output',
         hidden_size = d_model,
         dropout = dropout,
         output_size = 1 # from dataset

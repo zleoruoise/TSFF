@@ -31,7 +31,7 @@ from spconv.utils import Point2VoxelCPU1d
 from cumm import tensorview as tv
 
 from tsff.data_module.utils.builder import build_pipeline,DATASETS
-from tsff.data_module.utils.compose  import Compose
+from tsff.data_module.pipelines.compose  import Compose
 
 @DATASETS.register_module()
 class base_dataset(Dataset):
