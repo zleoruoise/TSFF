@@ -21,7 +21,8 @@ from pytorch_forecasting import QuantileLoss,MultiHorizonMetric, SMAPE,RMSE, MAE
 from torchmetrics import Metric as LightningMetric
 
 from torch import nn
-from tsff.algorithm_module.models.builder import *
+from ..builder import * 
+#from tsff.algorithm_module.models.builder import *
 
 import pytorch_lightning as pl
 from pytorch_forecasting.metrics import (
@@ -158,7 +159,7 @@ class enc_model(pl.LightningModule):
         loss = self.loss(y_hat,y)
         val_metrics = {key:cur_metric(y_hat,y) for key,cur_metric in self.val_metrics}
 
-        self.log("loss", loss)
+        self.log("val_loss", loss)
         self.log_dict(val_metrics)
 
     def test_step(self,batch,batch_idx):
