@@ -28,14 +28,22 @@ class triple_barrier:
         upper = np.where(horizon_value > base_value * (1 + self.barrier_width),1,0)
         lower = np.where(horizon_value < base_value * (1 - self.barrier_width),1,0)
 
-        upper_a1 = np.argmax(upper)
-        lower_a1 = np.argmax(lower)
+        if len(upper[0]) > 1:
+            upper_a1 = np.argmax(upper)
+            lower_a1 = np.argmax(lower)
 
-        if upper_a1 > lower_a1:
-            data['target'] = torch.tensor([2], dtype = torch.float32)
-        elif upper_a1 < lower_a1:
-            data['target'] = torch.tensor([0], dtype = torch.float32)
+            if upper_a1 > lower_a1:
+                data['target'] = torch.tensor([2], dtype = torch.int32)
+            elif upper_a1 < lower_a1:
+                data['target'] = torch.tensor([0], dtype = torch.int32)
+            else:
+                data['target'] = torch.tensor([1], dtype = torch.int32)
         else:
-            data['target'] = torch.tensor([1], dtype = torch.float32)
+            if upper[0][0] == 1:
+                data['target'] = torch.tensor([2], dtype = torch.int32)
+            elif lower[0][0] == 1:
+                data['target'] = torch.tensor([0], dtype = torch.int32)
+            else:
+                data['target'] = torch.tensor([1], dtype = torch.int32)
 
         return data 

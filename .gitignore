@@ -145,3 +145,4 @@ preds.hdf5
 *.txt
 *.npy
 work_dir/*
+*.pkl

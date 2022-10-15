@@ -73,6 +73,7 @@ class monthly_dataset(Dataset):
         std: List[float] = [0,0,0,0,100],
         pipeline: List[Dict[str,str]] = [],
         num_workers = 4,
+        selected_cols = [],
         load_memory = None,
 
     ):
@@ -108,6 +109,9 @@ class monthly_dataset(Dataset):
         # 
         self.mean = mean
         self.std = std
+
+        # 
+        self.selected_cols = selected_cols
 
         self.num_workers = num_workers
         self.memory_data = None
