@@ -5,7 +5,7 @@ from tsff.algorithm_module.models.builder import POST_ATTENTION
 from tsff.algorithm_module.models.layers import *
 
 @POST_ATTENTION.register_module()
-class dec_post_attention(nn.Module):
+class single_softmax_output(nn.Module):
 
     # set 
     def __init__(self,
@@ -14,12 +14,14 @@ class dec_post_attention(nn.Module):
             output_size
             ):
 
-        super(dec_post_attention,self).__init__()
+        super(single_softmax_output,self).__init__()
         self.output_layer = nn.Linear(hidden_size,output_size)
+        self.cls_layer = nn.Softmax()
     
     def forward(self, x):
         _x = x['attn_data']
         _x = self.output_layer(_x)
+        _x = self.cls_layer(_x)
         x['output_data'] = _x
         return x 
 

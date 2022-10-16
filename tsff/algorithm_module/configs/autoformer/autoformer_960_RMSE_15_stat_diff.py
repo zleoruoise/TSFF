@@ -110,7 +110,7 @@ trainer = dict(
 # model settings
 model = dict(
     type = 'enc_model',
-    loss = 'RMSE',
+    loss = 'CrossEntropy',
     #val_metrics = ['RMSE'],
     lr_scheduler = "CosineAnnealingWarmRestarts",
     optimizer = "adamw",
