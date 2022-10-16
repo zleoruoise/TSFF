@@ -35,7 +35,7 @@ from tsff.data_module.utils.builder import build_pipeline,DATASETS
 from tsff.data_module.pipelines.compose  import Compose
 
 @DATASETS.register_module()
-class monthly_dataset(Dataset):
+class dm_seq(Dataset):
     """
     PyTorch Dataset for fitting timeseries models.
 
@@ -182,6 +182,8 @@ class monthly_dataset(Dataset):
     def _construct_index(self,) -> List[float]:
         """
         Create index of samples.
+        Assumes each pair has the same number of obs.
+        Assumes data has been loaded to self.memory_data
 
         Args:
             data (pd.DataFrame): preprocessed data
@@ -191,16 +193,21 @@ class monthly_dataset(Dataset):
             pd.DataFrame: index dataframe
         """
         # file
-        start_time = datetime.strptime(self.start_date, "%Y%m%d")
-        start_time = time.mktime(start_time.timetuple()) + GLOBAL_TIMEDIFF
-        end_time = datetime.strptime(self.end_date, "%Y%m%d") + dt.timedelta(days=1)
-        end_time = time.mktime(end_time.timetuple()) + GLOBAL_TIMEDIFF
+        key1,value1 = list(self.memory_data.items())[0]
 
-        start_time *= 1000
-        end_time *= 1000
-        time_interval = self.time_interval * 1000
+        trunc_point = []
+        for i in value1:
+            # assume differencing is just 1 time step
+            cur_shape = i.shape[0] - (self.encoder_length + self.decoder_length + 1 + 1) 
+            trunc_point.append(cur_shape)
 
-        index_val = np.arange(start_time,end_time,time_interval)
+        trunc_point.insert(0,0)
+        index_val = np.arange(0 ,sum(trunc_point))
+        # for __getitem__
+        trunc_point = np.cumsum(trunc_point)
+        self.trunc_point = trunc_point
+
+
 
         return index_val
 
@@ -211,8 +218,7 @@ class monthly_dataset(Dataset):
         Returns:
             int: length
         """
-        lagged_time = self.encoder_length + self.decoder_length 
-        return len(self.index) - int(lagged_time)
+        return len(self.index)
     
     def __getitem__(self, idx: int) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
         """
@@ -224,32 +230,35 @@ class monthly_dataset(Dataset):
         Returns:
             Tuple[Dict[str, torch.Tensor], torch.Tensor]: x and y for model
         """
-        try:
-            start_time = self.index[idx]
-            data = {'start_time':start_time}
+        #try:
+        base_idx = np.digitize(idx,self.trunc_point) - 1
+        inside_idx = idx - self.trunc_point[base_idx]
+        
+        data = {'inside_idx':inside_idx}
+        data.update({'base_idx':base_idx})
 
-            if self.memory_data is not None:
-                data.update(dict(x_data = self.memory_data))
+        if self.memory_data is not None:
+            data.update(dict(x_data = self.memory_data))
 
-            data = self.pipeline(data)
-            data['ignore_flag'] = False
-            if data['x_data'].shape[0] != self.encoder_length -1:
-                raise Exception("more than two errors")
-            if data['time_stamp'].shape[0] != self.encoder_length -1:
-                raise Exception("more than two errors")
-            if data['target'].shape[0] != 1:
-                raise Exception("more than two errors")
-            return data
-        except:
-            return dict(x_data = torch.zeros((self.encoder_length-1,
-                                            len(self.pairs) * 5),
-                                            dtype = torch.float32), 
-                        target = torch.zeros((1), dtype = torch.float32),
-                        time_stamp = torch.zeros((self.encoder_length -1), dtype= torch.float32),
-                        ignore_flag = True 
-                        #coords = coords,
-                        #num_points = num_points,
-                        )
+        data = self.pipeline(data)
+        data['ignore_flag'] = False
+        if data['x_data'].shape[0] != self.encoder_length -1:
+            raise Exception("more than two errors")
+        if data['time_stamp'].shape[0] != self.encoder_length -1:
+            raise Exception("more than two errors")
+        if data['target'].shape[0] != 1:
+            raise Exception("more than two errors")
+        return data
+        #except:
+        #    return dict(x_data = torch.zeros((self.encoder_length-1,
+        #                                    len(self.pairs) * 5),
+        #                                    dtype = torch.float32), 
+        #                target = torch.zeros((1), dtype = torch.float32),
+        #                time_stamp = torch.zeros((self.encoder_length -1), dtype= torch.float32),
+        #                ignore_flag = True 
+        #                #coords = coords,
+        #                #num_points = num_points,
+        #                )
 
 
 

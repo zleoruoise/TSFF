@@ -290,7 +290,7 @@ if __name__ == "__main__":
     from  tsff.algorithm_module import train,parse_args,load_cfg,load_model
 
     args = parse_args()
-    args.config = '/home/ycc/TSFF/tsff/algorithm_module/configs/autoformer/autoformer_960_RMSE_15_stat_diff.py'
+    args.config = '/home/ycc/TSFF/tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py'
 
     cfg = load_cfg(args)
 

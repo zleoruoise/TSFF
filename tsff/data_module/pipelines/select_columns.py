@@ -17,8 +17,16 @@ class select_columns:
 
         result_df = {}
         for pair,datum in x_data.items():
-            cur_data = datum.loc[:,self.selected_headers]
+            if isinstance(datum,pd.DataFrame):
+                cur_data = datum.loc[:,self.selected_headers]
+            elif isinstance(datum, list):
+                cur_data = []
+                for _datum in datum:
+                    cur_df = _datum.loc[:,self.selected_headers]
+                    cur_data.append(cur_df)
+            # overall update - list or df 
             result_df.update({pair : cur_data})
+                
         
         data['x_data'] = result_df
         return data 

@@ -33,17 +33,17 @@ class triple_barrier:
             lower_a1 = np.argmax(lower)
 
             if upper_a1 > lower_a1:
-                data['target'] = torch.tensor([2], dtype = torch.int32)
+                data['target'] = torch.tensor([2], dtype = torch.long)
             elif upper_a1 < lower_a1:
-                data['target'] = torch.tensor([0], dtype = torch.int32)
+                data['target'] = torch.tensor([0], dtype = torch.long)
             else:
-                data['target'] = torch.tensor([1], dtype = torch.int32)
+                data['target'] = torch.tensor([1], dtype = torch.long)
         else:
             if upper[0][0] == 1:
-                data['target'] = torch.tensor([2], dtype = torch.int32)
+                data['target'] = torch.tensor([2], dtype = torch.long)
             elif lower[0][0] == 1:
-                data['target'] = torch.tensor([0], dtype = torch.int32)
+                data['target'] = torch.tensor([0], dtype = torch.long)
             else:
-                data['target'] = torch.tensor([1], dtype = torch.int32)
+                data['target'] = torch.tensor([1], dtype = torch.long)
 
         return data 

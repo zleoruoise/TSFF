@@ -146,3 +146,4 @@ preds.hdf5
 *.npy
 work_dir/*
 *.pkl
+*.csv

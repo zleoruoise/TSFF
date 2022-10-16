@@ -11,7 +11,7 @@ class single_mlp_output(nn.Module):
     def __init__(self,
             hidden_size,
             dropout,
-            output_size
+            output_size,
             ):
 
         super(single_mlp_output,self).__init__()

@@ -3,6 +3,7 @@
 # General variable 
 
 from base64 import decode
+from json import encoder
 from symbol import encoding_decl
 
 
@@ -29,22 +30,10 @@ forecast_type = 'reg'
 
 # work_dir - should be full path
 work_dir = '/home/ycc/TSFF/work_dir'
-train_pipeline = [dict(type = 'set_time', 
-                       encoder_length = encoder_length + 1,
-                       decoder_length = decoder_length,
-                       time_interval = 60),
-                  #dict(type = 'load_dfs',pairs =  pairs,
-                  #      data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
-                  #      headers = ('real_time', 'open', 'high','low','close','volume',
-                  #                 'Close_time','Quote_asset_volumne','Number_of_trades',
-                  #                 'Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore'),
-                  #      ),
-                  dict(type = 'select_columns',
+train_pipeline = [dict(type = 'select_columns',
                        selected_headers =  ("real_time","open",
                             "close","high","low","volume")),
-#                  dict(type = 'diff_price',
-#                        selected_cols = selected_cols),
-                  dict(type = 'crop_df',
+                  dict(type = 'crop_df_seq',
                         encoder_length = encoder_length + 1,
                         decoder_length = decoder_length,
                         time_interval = 60),
@@ -71,7 +60,7 @@ train_pipeline = [dict(type = 'set_time',
 
 # model settings
 dataset = dict(
-    type = 'monthly_dataset',
+    type = 'dm_seq',
     data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
     pairs = pairs,
     target_pair = ['ETHUSDT'],
@@ -91,8 +80,8 @@ dataset = dict(
     selected_headers = ('real_time', 'open', 'high','low','close','volume',
                                    'Close_time','Quote_asset_volumne','Number_of_trades',
                                    'Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore'), 
-    load_memory = dict(type = 'load_memory',pairs =  pairs,
-                        data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
+    load_memory = dict(type = 'load_memory_seq',pairs =  pairs,
+                        data_path = "/home/ycc/TSFF/proc_data/",
                         ),
 )
 
@@ -158,9 +147,10 @@ model = dict(
         moving_avg = 25
     ),
     post_attention = dict(
-        type = 'single_mlp_output',
+        type = 'collapse_mlp_output',
         hidden_size = d_model,
+        encoder_length = encoder_length,
         dropout = dropout,
-        output_size = 1 # from dataset
+        output_size = 3 # from dataset
     ),
     )

@@ -6,7 +6,7 @@ import pandas as pd
 from ..utils.builder import build_pipeline,PIPELINES
 
 @PIPELINES.register_module()
-class load_dfs:
+class load_dfs_time:
     def __init__(self,pairs,data_path,headers):
         self.pairs = pairs
         self.data_path = data_path
