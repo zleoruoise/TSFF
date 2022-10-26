@@ -9,7 +9,7 @@ import torch
 from ..utils.builder import build_pipeline,PIPELINES
 
 @PIPELINES.register_module()
-class target_split:
+class target_split_irr:
     def __init__(self,selected_cols, encoder_length, decoder_length):
         self.selected_cols = selected_cols
         self.encoder_length = encoder_length
@@ -17,6 +17,8 @@ class target_split:
 
     def __call__(self,data):
         x_data = data['x_data']
+        start_time = data['start_time']
+        end_time = data['end_time']
 
         encoder_length = self.encoder_length
         decoder_length = self.decoder_length
@@ -38,15 +40,15 @@ class target_split:
             return result_df
 
         for pair,datum in x_data.items():
-            new_df = datum.iloc[:-(decoder_length+1),:]
+            new_df = datum.loc[datum['real_time'] < start_time + encoder_length * 1000,:]
             cov_result_df.update({pair : new_df})
 
         # diff base price in encoder data
         cov_result_df = diff_price(cov_result_df)
 
         for pair,datum in x_data.items():
-            new_df = datum.iloc[-(decoder_length+2):,:]
-            new_df_base = datum.iloc[-(decoder_length+2):,:]
+            new_df = datum.loc[datum['real_time'] > start_time + encoder_length * 1000,:]
+            new_df_base = datum.loc[datum['real_time'] > start_time + encoder_length * 1000,:]
 
             target_result_df.update({pair : new_df})
             target_base_price.update({pair : new_df_base})

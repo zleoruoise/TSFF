@@ -7,14 +7,13 @@ defines a class that is able to handle a wide variety of timeseries data problem
 GLOBAL_TIMEDIFF = 9*60*60
 
 from copy import copy as _copy, deepcopy
-from functools import lru_cache, partial
+from functools import lru_cache
 import os 
 import inspect
 import time
 import datetime as dt
 from datetime import datetime
 from typing import Any, Callable, Dict, List, Tuple, Union
-import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
