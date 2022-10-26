@@ -23,6 +23,7 @@ import pandas as pd
 
 from sklearn.exceptions import NotFittedError
 from sklearn.preprocessing import RobustScaler, StandardScaler
+from sympy import O
 
 import torch
 from torch.utils.data import DataLoader, Dataset
@@ -76,6 +77,7 @@ class monthly_dataset(Dataset):
         selected_cols = [],
         selected_headers = [],
         load_memory = None,
+        output_keys = []
 
     ):
         """
@@ -116,6 +118,9 @@ class monthly_dataset(Dataset):
         self.selected_headers = selected_headers 
 
         self.num_workers = num_workers
+        self.pipeline = Compose(pipeline)
+        self.output_keys = output_keys
+
         self.memory_data = None
         if load_memory is not None:
             load_memory.update(start_time = self.start_date)
@@ -143,7 +148,6 @@ class monthly_dataset(Dataset):
         ## filter data
 
         self.index = self._construct_index()
-        self.pipeline = Compose(pipeline)
 
         # ToDo: seperate classes for each transformations - refactoring
         # set transforms 
@@ -267,22 +271,13 @@ class monthly_dataset(Dataset):
             Tuple[Dict[str, torch.Tensor], Tuple[Union[torch.Tensor, List[torch.Tensor]], torch.Tensor]: minibatch
         """
         # collate function for dataloader
-        # lengths
+        output_dict = {}
 
-        # there is an error when all batches are False
-        x_data = torch.stack([batch['x_data'] for batch in batches])# if batch['ignore_flag'] is not True]
-        # debug code
-        time_stamp = torch.stack([batch['time_stamp'] for batch in batches])# if batch['ignore_flag'] is not True])
-        #coords = torch.stack([batch['coords'] for batch in batches])
-        #num_points = torch.stack([batch['num_points'] for batch in batches])
-        y_data = torch.stack([batch['target'] for batch in batches])# if batch['ignore_flag'] is not True])
-
-        return dict(x_data = x_data, 
-                    y_data = y_data,
-                    time_stamp = time_stamp,)
-                    #coords = coords,
-                    #num_points = num_points)
-
+        for key in self.output_keys:
+            output_dict[key] = torch.stack([batch[key] for batch in batches])
+        
+        return output_dict
+                
     def to_dataloader(
         self, train: bool = True, batch_sampler: Union[Sampler, str] = None, **kwargs
     ) -> DataLoader:

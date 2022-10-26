@@ -13,8 +13,9 @@ from .scaler import scaler
 from .select_columns import select_columns
 from .set_time import set_time 
 from .target_split import target_split
+from .target_split_irr import target_split_irr
 from .time_split import time_split
 from .triple_barrier import triple_barrier
 
-from .load_memory import load_memory
+from .load_memory_time import load_memory_time
 from .load_memory_seq import load_memory_seq
