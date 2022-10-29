@@ -34,7 +34,7 @@ Currently, I have used only one type of financial data, cryptocurrency data from
 │   │   ├── embedding - module that convert raw data to embedded vectors
 │   │   ├── local_encoder - local encoder parts that accords with tft. bypass embedding vectors to attention module if not used
 │   │   ├── utils - general func (decoder masks and etc.)
-│   │   ├── models - submodule wrapper
+│   │   ├── wrapped_models - submodule wrapper
 │   │   │   ├── base_model.py - one that follows tft structure
 │   │   ├── post_attention - final layers which yield multi-ahead reg scalar value or labels for classification.
 │   │   └── variable_selection - variable selection on embed vector. accords with tft bypass if not used.
@@ -57,11 +57,39 @@ Currently, I have used only one type of financial data, cryptocurrency data from
 │   ├── base_decision.py - base mechanisms for trading strategy
 │   ├── dynamic_betting_decision.py - to:Do - based on softmaxed probability, decide the side and proportion of trades
 │   └── zero_one_cls_decision.py - based on probability, decide only side of trading, but not the size.
-└── utils.py
+└── utils - module that handle registry and general utility function
 ```
 ## Supported Features
 
 ## How to install
+### requirements
+All the codes are tested in the following environment:
+* Linux (tested on Ubuntu 20.04)
+* Python 3.8+
+* PyTorch 1.7 or higher (tested on PyTorch 1.7, 1.11)
+* PyTorch Lightning 1.7.1
+* CUDA 11.0 or higher 
+*  [`spconv v2.x`](https://github.com/traveller59/spconv)
 
+
+### Install `TSFF`
+
+a. Clone this repository.
+```shell
+git clone https://github.com/zleoruoise/TSFF.git
+```
+
+b. Install the dependent libraries as follows:
+```shell
+pip install -r requirements.txt 
+```
+
+
+c. Install this `pcdet` library and its dependent libraries by running the following command:
+```shell
+python setup.py develop
+```
+
+## Quick Demo
 ## Getting Starts
 
