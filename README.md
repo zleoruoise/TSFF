@@ -1,5 +1,14 @@
 # TSFF
+Time Series Forecasting for Financial data (TSFF) is an open source project for time series forecasting and classification using deep learning models, such as transformer and RNN/LSTM.
 
+Compared to other deep learning open source project on time series forecasting, such as pytorch forecasting, TSFF has a modular design. We 
+decomposed components as described in Temporal fusion transformers for inter- pretable multi-horizon time series forecasting.
+
+In addition, model training configuration setting and interaction between model and datasets are followed Object Detection open source projects, such as OpenPCDet and MMDetection. 
+
+In order to reduce repeated stuff, we select to use pytorch lightning for handling training, validation hook. Learning scheduler and loggings are directly brought from Pytorch lighning.
+
+Currently, I have used only one type of financial data, cryptocurrency data from Binance, but it is because those dataset is the easiest to access. It is planned to add other types of financial data, such as stock and foreign exchange rate.
 ## Design Patterns
 
 ## Module structure
