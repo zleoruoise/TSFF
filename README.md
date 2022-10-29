@@ -10,6 +10,7 @@ In order to reduce repeated stuff, we select to use pytorch lightning for handli
 
 Currently, I have used only one type of financial data, cryptocurrency data from Binance, but it is because those dataset is the easiest to access. It is planned to add other types of financial data, such as stock and foreign exchange rate.
 ## Design Patterns
+![Design](design_pattern.png)
 
 ## Module structure
 ```
