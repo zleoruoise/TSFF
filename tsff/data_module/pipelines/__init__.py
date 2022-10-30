@@ -16,6 +16,7 @@ from .target_split import target_split
 from .target_split_irr import target_split_irr
 from .time_split import time_split
 from .triple_barrier import triple_barrier
+from .time_stamp_gen import time_stamp_gen
 
 from .load_memory_time import load_memory_time
 from .load_memory_seq import load_memory_seq

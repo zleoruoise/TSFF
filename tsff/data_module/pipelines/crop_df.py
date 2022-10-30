@@ -20,7 +20,9 @@ class crop_df:
         end_time = data['end_time']
 
         result_df = {}
-        data_length = self.encoder_length + self.decoder_length + 1
+        # data_length is 1 step larger - because we want target to 1 step ahead of decoder input
+        # also encoder_length in cfg is 1 larger than target encoder_length, this is because of differencing
+        data_length = self.encoder_length + self.decoder_length + 1 
         for key,value in x_data.items():
             cur_df = value.loc[(value['real_time'] >= start_time) &
                                 (value['real_time'] < end_time),:]

@@ -34,7 +34,7 @@ class triple_barrier:
         upper = np.where(horizon_value > base_value * (1 + self.barrier_width),1,0)
         lower = np.where(horizon_value < base_value * (1 - self.barrier_width),1,0)
 
-        if len(upper[0]) > 1:
+        if len(upper) > 1:
             upper_a1 = np.argmax(upper)
             lower_a1 = np.argmax(lower)
 

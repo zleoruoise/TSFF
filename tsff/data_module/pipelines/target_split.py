@@ -32,7 +32,7 @@ class target_split:
                 # only selected_cols are diffed -> time is not diffed 
                 cur_cols = [i for i in ori_cols if i not in self.selected_cols]
                 new_df = datum.loc[:,self.selected_cols].diff(axis= 0,periods =1)
-                new_df = pd.concat([cur_cols,new_df.iloc[1:,:],datum.loc[datum.index[1]:]],axis = 1)
+                new_df = pd.concat([datum.loc[datum.index[1]:,cur_cols],new_df.iloc[1:,:],],axis = 1)
                 result_df.update({pair : new_df})
 
             return result_df

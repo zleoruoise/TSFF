@@ -228,32 +228,32 @@ class monthly_dataset(Dataset):
         Returns:
             Tuple[Dict[str, torch.Tensor], torch.Tensor]: x and y for model
         """
-        #try:
-        start_time = self.index[idx]
-        data = {'start_time':start_time}
+        try:
+            start_time = self.index[idx]
+            data = {'start_time':start_time}
 
-        if self.memory_data is not None:
-            data.update(dict(x_data = self.memory_data))
+            if self.memory_data is not None:
+                data.update(dict(x_data = self.memory_data))
 
-        data = self.pipeline(data)
-        data['ignore_flag'] = False
-        #if data['x_data'].shape[0] != self.encoder_length -1:
-        #    raise Exception("more than two errors")
-        #if data['time_stamp'].shape[0] != self.encoder_length -1:
-        #    raise Exception("more than two errors")
-        #if data['target'].shape[0] != 1:
-        #    raise Exception("more than two errors")
-        return data
-        #except:
-        #    return dict(x_data = torch.zeros((self.encoder_length-1,
-        #                                    len(self.pairs) * 5),
-        #                                    dtype = torch.float32), 
-        #                target = torch.zeros((1), dtype = torch.float32),
-        #                time_stamp = torch.zeros((self.encoder_length -1), dtype= torch.float32),
-        #                ignore_flag = True 
-        #                #coords = coords,
-        #                #num_points = num_points,
-        #                )
+            data = self.pipeline(data)
+            data['ignore_flag'] = False
+            #if data['x_data'].shape[0] != self.encoder_length -1:
+            #    raise Exception("more than two errors")
+            #if data['time_stamp'].shape[0] != self.encoder_length -1:
+            #    raise Exception("more than two errors")
+            #if data['target'].shape[0] != 1:
+            #    raise Exception("more than two errors")
+            return data
+        except:
+            return dict(voxels = torch.zeros((self.encoder_length*60,500,
+                                            len(self.pairs) * 3),
+                                            dtype = torch.float32), 
+                        target = torch.zeros((1), dtype = torch.float32),
+                        time_stamp = torch.zeros((self.encoder_length), dtype= torch.float32),
+                        ignore_flag = True ,
+                        coords = torch.zeros((self.encoder_length*60,1)),
+                        num_points = torch.zeros((self.encoder_length*60,1)),
+                        )
 
 
 
@@ -274,7 +274,7 @@ class monthly_dataset(Dataset):
         output_dict = {}
 
         for key in self.output_keys:
-            output_dict[key] = torch.stack([batch[key] for batch in batches])
+            output_dict[key] = torch.stack([batch[key] for batch in batches if batch['ignore_flag'] == False])
         
         return output_dict
                 

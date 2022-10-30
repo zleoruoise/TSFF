@@ -11,12 +11,13 @@ class collapse_mlp_output(nn.Module):
     def __init__(self,
             hidden_size,
             encoder_length,
+            time_interval,
             dropout,
             output_size,
             ):
 
         super(collapse_mlp_output,self).__init__()
-        self.output_layer = nn.Linear(encoder_length*hidden_size,output_size)
+        self.output_layer = nn.Linear(encoder_length*time_interval*hidden_size,output_size)
     
     def forward(self, x):
         _x = x['attn_data']

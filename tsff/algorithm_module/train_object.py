@@ -290,8 +290,7 @@ if __name__ == "__main__":
     from  tsff.algorithm_module import train,parse_args,load_cfg,load_model
 
     args = parse_args()
-    args.config = '/home/ycc/TSFF/tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py'
-
+    args.config = '/home/ycc/TSFF/tsff/algorithm_module/configs/pointformer/pointformer_960_CE_1.py'
     cfg = load_cfg(args)
 
     cur_model = load_model(cfg)

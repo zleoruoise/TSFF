@@ -10,10 +10,11 @@ from ..utils.builder import build_pipeline,PIPELINES
 
 @PIPELINES.register_module()
 class target_split_irr:
-    def __init__(self,selected_cols, encoder_length, decoder_length):
+    def __init__(self,selected_cols, encoder_length, decoder_length,time_interval):
         self.selected_cols = selected_cols
         self.encoder_length = encoder_length
         self.decoder_length = decoder_length
+        self.time_interval = time_interval
 
     def __call__(self,data):
         x_data = data['x_data']
@@ -34,21 +35,21 @@ class target_split_irr:
                 # only selected_cols are diffed -> time is not diffed 
                 cur_cols = [i for i in ori_cols if i not in self.selected_cols]
                 new_df = datum.loc[:,self.selected_cols].diff(axis= 0,periods =1)
-                new_df = pd.concat([cur_cols,new_df.iloc[1:,:],datum.loc[datum.index[1]:]],axis = 1)
+                new_df = pd.concat([datum.loc[datum.index[1]:,cur_cols],new_df.iloc[1:,:]],axis = 1)
                 result_df.update({pair : new_df})
 
             return result_df
 
         for pair,datum in x_data.items():
-            new_df = datum.loc[datum['real_time'] < start_time + encoder_length * 1000,:]
+            new_df = datum.loc[datum['real_time'] < start_time + encoder_length * 1000* self.time_interval,:]
             cov_result_df.update({pair : new_df})
 
         # diff base price in encoder data
         cov_result_df = diff_price(cov_result_df)
 
         for pair,datum in x_data.items():
-            new_df = datum.loc[datum['real_time'] > start_time + encoder_length * 1000,:]
-            new_df_base = datum.loc[datum['real_time'] > start_time + encoder_length * 1000,:]
+            new_df = datum.loc[datum['real_time'] > start_time + encoder_length * 1000* self.time_interval,:]
+            new_df_base = datum.loc[datum['real_time'] > start_time + encoder_length * 1000 * self.time_interval,:]
 
             target_result_df.update({pair : new_df})
             target_base_price.update({pair : new_df_base})

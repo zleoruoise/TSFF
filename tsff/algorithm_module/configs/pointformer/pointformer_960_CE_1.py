@@ -11,7 +11,7 @@ n_head = 8
 dropout = 0.1
 
 # model input output size 
-encoder_length = 960 
+encoder_length = 2 
 decoder_length = 0
 
 hidden_continuous_size = 128 # used both in dataset and model
@@ -28,11 +28,11 @@ lstm_layers_num = 3
 forecast_type = 'reg'
 
 # work_dir - should be full path
-work_dir = '/home/ycc/TSFF/work_dir'
-train_pipeline = [dict(type = 'set_time', 
-                       encoder_length = encoder_length + 1,
-                       decoder_length = decoder_length,
-                       time_interval = 60),
+work_dir = '/home/ycc/TSFF/work_dir/test1'
+train_pipeline = [dict(type = 'set_time', # endtime = start + (d+e+1) * 60 * 1000
+                       encoder_length = encoder_length, # (2+1)
+                       decoder_length = decoder_length, # (0)
+                       time_interval = 60), # ((2+1) + 0 + 1) * 60 * 1000 = endtime
                   #dict(type = 'load_dfs',pairs =  pairs,
                   #      data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
                   #      headers = ('real_time', 'open', 'high','low','close','volume',
@@ -41,31 +41,39 @@ train_pipeline = [dict(type = 'set_time',
                   #      ),
                   dict(type = 'select_columns',
                        selected_headers =  ('real_time','Price','Quantity')),
-                  dict(type = 'crop_df',
-                        encoder_length = encoder_length + 1,
+                  dict(type = 'crop_df', # crop (encoder + decoder) * 60 ( (2+2) * 60 - 240 secs)
+                        encoder_length = encoder_length,
                         decoder_length = decoder_length,
                         time_interval = 60,
                         pointnet = True),
                   #dict(type = 'scaler',
                   #      pickle_path = '/home/ycc/TSFF/scaler_202210.pkl',
                   #      selected_cols = selected_cols), 
-                  dict(type = 'target_split',
+                  dict(type = 'target_split_irr',
                         selected_cols = selected_cols,
-                        encoder_length = encoder_length + 1,
-                        decoder_length = decoder_length),
+                        encoder_length = encoder_length,
+                        decoder_length = decoder_length,
+                        time_interval = 60),
                   dict(type = 'time_split',
                         selected_cols = selected_cols),
                   dict(type = 'pointnet_transform',
                         selected_cols = selected_cols,
-                        time_interval = 60,
+                        encoder_length = encoder_length,
+                        decoder_length = decoder_length,
+                        time_interval = 1,
                         pairs = pairs
                         ),
+                  dict(type = 'time_stamp_gen', 
+                        encoder_length = encoder_length,
+                        decoder_length = decoder_length,
+                        time_interval = 1),
                   dict(type = 'convert_np2ts',
-                        keys = ['x_data','time_stamp','voxels','coords','num_points']),
+                        numpy_keys = ['voxels','coords','num_points','time_stamp']),
                   dict(type = 'triple_barrier',
                         selected_cols = selected_cols,
                         target_pair = target_pair,
-                        barrier_width = 0.001)
+                        barrier_width = 0.001,
+                        aggtrade = True)
 ]
 
 # model settings
@@ -75,7 +83,7 @@ dataset = dict(
     pairs = pairs,
     target_pair = ['ETHUSDT'],
     start_date = "20210801",
-    end_date = "20210930",
+    end_date = "20210831",
     time_interval = 60,
     encoder_length = encoder_length + 1, # encoder 
     decoder_length = decoder_length,
@@ -94,17 +102,17 @@ dataset = dict(
                         data_type = 'aggtrades'
                         
                         ),
-    output_keys = ['x_data','target','voxels','num_points','coords']
+    output_keys = ['target','voxels','num_points','coords','time_stamp']
 )
 
 # trainer settings
 trainer = dict(
     stop_patience = 5,
-    max_epochs = 5000,
+    max_epochs = 100,
     gpus=1,
     weights_summary="top",
     gradient_clip_val=0.1,
-    limit_train_batches=0.02,
+    limit_train_batches=0.1,
     check_val_every_n_epoch= 5,
     fast_dev_run=False,  
 )
@@ -125,7 +133,7 @@ model = dict(
         value_embedding = dict(
             type = 'pillar_vfe',
             d_model = d_model, # should be loaded in from_dataset
-            num_point_features= len(pairs) * len(selected_cols),
+            num_point_features= len(pairs) * (len(selected_cols)+1),
             use_norm = True,
             use_relative_distance = True 
         ),
@@ -169,9 +177,11 @@ model = dict(
         moving_avg = 25
     ),
     post_attention = dict(
-        type = 'single_mlp_output',
+        type = 'collapse_mlp_output',
         hidden_size = d_model,
+        encoder_length = encoder_length,
+        time_interval = 60,
         dropout = dropout,
-        output_size = 1 # from dataset
+        output_size = 3 # from dataset
     ),
     )
