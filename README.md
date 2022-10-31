@@ -314,12 +314,12 @@ and [wrapper_models] is a module that consists those submodules as a attribute.
 
 3. Train dataset using provided python script.
 ```shell
-python tsff/tools/train.py --cfg tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py
+python tsff/tools/train.py --config tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py
 ```
 
 4. test dataset using provided python script.
 ```shell
-python tsff/tools/test.py --cfg tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py \
+python tsff/tools/test.py --config tsff/algorithm_module/configs/autoformer/autoformer_960_CE_1_seq.py \
     --weights work_dirs/autoformer/epoch_1.pth
 ```
 

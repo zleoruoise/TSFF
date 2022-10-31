@@ -19,6 +19,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='Train a detector')
     parser.add_argument('--config', help='train config file path')
     parser.add_argument('--work-dir', help='the dir to save logs and models')
+    parser.add_argument('--weights', help='the dir to save logs and models')
     parser.add_argument(
         '--resume-from', help='the checkpoint file to resume from')
     parser.add_argument(
@@ -114,18 +115,20 @@ def resume_train(args):
     # save updated cfg in file 
     
 
-def test(args,weight_path,batch_size = 16,**kwargs):
+def test(args,batch_size = 16,**kwargs):
     cfg = load_cfg(args)
     cfg.dataset.batch_size = cfg.dataset.batch_size * 3
     cfg.dataset.stop_val_randomization = False 
 
     model = load_model(cfg)
     model.prepare_learning()
-    model.load_weights(weight_path)
+    model.load_weights(args.weights)
 
-    time_idx, predictions, observations = model.eval_predict()
+    output = model.predict()
+    
+    with open('test_result.pkl','w') as f:
+        f.write(output)
 
-    return time_idx, predictions, observations
 
 
 def load_cfg(args):

@@ -86,17 +86,18 @@ def parse_args():
     return args
 
 
-def train(args):
+def train(args, experiment = False):
 
     cfg = load_cfg(args)
     model = load_model(cfg)
     #
     model.prepare_learning()
-    # save updated cfg in file 
-    cur_cfg = model.model.cfg
-    file_name = os.path.join(Path(cfg.work_dir), "experiment_config.json")
-    with open(file_name,'w') as f:
-        json.dump(cur_cfg, f,indent=4)
+    if experiment:
+        # save updated cfg in file 
+        cur_cfg = model.model.cfg
+        file_name = os.path.join(Path(cfg.work_dir), "experiment_config.json")
+        with open(file_name,'w') as f:
+            json.dump(cur_cfg, f,indent=4)
 
     #tensorboard_launch(cfg.work_dir)
     model.fit()
