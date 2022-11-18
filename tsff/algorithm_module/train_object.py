@@ -169,7 +169,10 @@ class train_object:
         # raw dataframe as our input, and let self.model to handle the transformation
         # online dataset should also pass dataframe  
         #new_preds = self.model.predict(new_data, mode = "prediction")
-        new_preds = self.model.predict(new_data, mode = "raw")
+        new_preds =[]
+        for idx,new_data in enumerate(self.val_dataloader):
+            new_pred = self.model.prediction_step(new_data)
+            new_preds.append(new_pred)
         return new_preds
 
     def eval_predict(self,new_df=None,raw_prediction = True,**kwargs):

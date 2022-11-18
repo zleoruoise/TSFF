@@ -3,7 +3,6 @@
 # General variable 
 
 from base64 import decode
-from json import encoder
 from symbol import encoding_decl
 
 
@@ -20,9 +19,9 @@ output_size = 10
 log_interval = 10
 custom_lr_scheduler = "CosineAnnealingWarmRestarts"
 
-pairs = ['BTCUSDT','ETHUSDT',"BNBUSDT","XRPUSDT","ADAUSDT"]
+pairs = ['BTCUSDT','ETHUSDT',"BNBUSDT","XRPUSDT","SOLUSDT","LUNAUSDT"]
 target_pair = ['ETHUSDT']
-selected_cols = ("open","close","high","low","volume")
+selected_cols = ('Quantity','Price')
 lstm_layers_num = 3
 
 # forecast type
@@ -30,28 +29,41 @@ forecast_type = 'reg'
 
 # work_dir - should be full path
 work_dir = '/home/ycc/TSFF/work_dir'
-train_pipeline = [dict(type = 'select_columns',
-                       selected_headers =  ("real_time","open",
-                            "close","high","low","volume")),
-                  dict(type = 'crop_df_seq',
+train_pipeline = [dict(type = 'set_time', 
+                       encoder_length = encoder_length + 1,
+                       decoder_length = decoder_length,
+                       time_interval = 60),
+                  #dict(type = 'load_dfs',pairs =  pairs,
+                  #      data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
+                  #      headers = ('real_time', 'open', 'high','low','close','volume',
+                  #                 'Close_time','Quote_asset_volumne','Number_of_trades',
+                  #                 'Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore'),
+                  #      ),
+                  dict(type = 'select_columns',
+                       selected_headers =  ('Timestamp','Price','Quantity')),
+                  dict(type = 'crop_df',
                         encoder_length = encoder_length + 1,
                         decoder_length = decoder_length,
-                        time_interval = 2),
-                  dict(type = 'scaler',
-                        pickle_path = '/home/ycc/TSFF/scaler_202210.pkl',
-                        selected_cols = selected_cols), 
+                        time_interval = 60,
+                        pointnet = True),
+                  #dict(type = 'scaler',
+                  #      pickle_path = '/home/ycc/TSFF/scaler_202210.pkl',
+                  #      selected_cols = selected_cols), 
+                  dict(type = 'pointnet_transform',
+                        selected_cols = selected_cols,
+                        time_interval = 60,
+                        pairs = pairs
+                        ),
                   dict(type = 'target_split',
                         selected_cols = selected_cols,
                         encoder_length = encoder_length + 1,
                         decoder_length = decoder_length),
-#                  dict(type = 'scaler',
-#                        value_pickle = ''),
                   dict(type = 'time_split',
                         selected_cols = selected_cols),
                   dict(type = 'regular_concat',
                         selected_cols = selected_cols),
                   dict(type = 'convert_np2ts',
-                        df_keys = ['x_data','time_stamp']),
+                        keys = ['x_data','time_stamp','voxels','coords','num_points']),
                   dict(type = 'triple_barrier',
                         selected_cols = selected_cols,
                         target_pair = target_pair,
@@ -60,13 +72,13 @@ train_pipeline = [dict(type = 'select_columns',
 
 # model settings
 dataset = dict(
-    type = 'dm_seq',
-    data_path = "/home/ycc/additional_life/binance-public-data/data/data/spot/monthly/klines",
+    type = 'monthly_dataset',
+    data_path = "/home/ycc/additional_life/binance-public-data/data_agg/spot/monthly/aggTrades",
     pairs = pairs,
     target_pair = ['ETHUSDT'],
-    start_date = "20210101",
-    end_date = "20220331",
-    time_interval = 2,
+    start_date = "20200801",
+    end_date = "20211130",
+    time_interval = 60,
     encoder_length = encoder_length + 1, # encoder 
     decoder_length = decoder_length,
     val_cutoff = 0.8,
@@ -77,11 +89,12 @@ dataset = dict(
     pipeline = train_pipeline,
     num_workers =22, 
     selected_cols = selected_cols,
-    selected_headers = ('real_time', 'open', 'high','low','close','volume',
-                                   'Close_time','Quote_asset_volumne','Number_of_trades',
-                                   'Taker_buy_base_asset_volume',"Taker_buy_quote_asset_volume",'ignore'), 
-    load_memory = dict(type = 'load_memory_seq',pairs =  pairs,
-                        data_path = "/home/ycc/TSFF/proc_data/",
+    selected_headers =  ['Agg_tradeId','Price','Quantity','First_tradeID','Last_tradeID','Timestamp','maker','bestPrice'], 
+
+    load_memory = dict(type = 'load_memory_time',pairs =  pairs,
+                        data_path = "/home/ycc/additional_life/binance-public-data/data_agg/spot/monthly/aggTrades",
+                        data_type = 'aggtrades'
+                        
                         ),
 )
 
@@ -108,13 +121,23 @@ model = dict(
 
     # first embedding layers
     embedding = dict(
-        type = "multitype_embedding",
+        type = "base_embedding",
         #cat embedding
-        categorical_embedding_layer = None,        # cont_embdding
-        continuous_embedding_layer = dict(
-            type = 'continuous_embedding_layer',
-            hidden_continuous_size = hidden_continuous_size,
-            num_cov = len(pairs) * 5,
+        value_embedding = dict(
+            type = 'pillar_vfe',
+            d_model = d_model, # should be loaded in from_dataset
+            num_point_features= len(pairs) * len(selected_cols),
+            use_norm = True,
+            use_relative_distance = True 
+        ),
+        positional_embedding = dict(
+            type = 'pillar_positional',
+            d_model = d_model, # should be loaded in from_dataset
+            max_len = 5000 if encoder_length < 5000 else encoder_length * 2
+        ),
+        temporal_embedding = dict(
+            type = 'pillar_temporal',
+            d_model = d_model, # should be loaded in from_dataset
         ),
     ),
 
@@ -147,11 +170,9 @@ model = dict(
         moving_avg = 25
     ),
     post_attention = dict(
-        type = 'collapse_mlp_output',
+        type = 'single_mlp_output',
         hidden_size = d_model,
-        encoder_length = encoder_length,
-        time_interval = 1,
         dropout = dropout,
-        output_size = 3 # from dataset
+        output_size = 1 # from dataset
     ),
     )

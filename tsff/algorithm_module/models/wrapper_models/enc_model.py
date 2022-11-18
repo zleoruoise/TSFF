@@ -145,16 +145,16 @@ class enc_model(pl.LightningModule):
         return x['output_data']
 
     def training_step(self,batch,batch_idx):
-        x = {k:v for k,v in batch.items() if k != 'y_data'}
-        y = batch['y_data']
+        x = {k:v for k,v in batch.items() if k != 'target'}
+        y = batch['target']
         y_hat = self(x)
         loss = self.loss(y_hat,y)
         self.log("loss", loss)
         return loss
         
     def validation_step(self,batch,batch_idx):
-        x = {k:v for k,v in batch.items() if k != 'y_data'}
-        y = batch['y_data']
+        x = {k:v for k,v in batch.items() if k != 'target'}
+        y = batch['target']
         y_hat = self(x)
         loss = self.loss(y_hat,y)
         val_metrics = {key:cur_metric(y_hat,y) for key,cur_metric in self.val_metrics}
