@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import torch.functional as F
 from tsff.algorithm_module.models.builder import POST_ATTENTION
-from tsff.algorithm_module.models.layers import *
 
 @POST_ATTENTION.register_module()
 class single_softmax_output(nn.Module):

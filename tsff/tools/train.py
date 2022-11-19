@@ -11,7 +11,7 @@ import glob
 from tensorboard import program
 
 from tsff.algorithm_module.train_object import train_object
-from ..utils import Config 
+from tsff.utils import Config 
 
 
 

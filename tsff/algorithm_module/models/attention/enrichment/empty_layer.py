@@ -2,7 +2,6 @@ import torch
 from torch import nn
 import torch.functional as F
 from ....models.builder import ENRICHMENT 
-from ....models.layers import *
 
 @ENRICHMENT.register_module()
 class empty_layer(nn.Module):
