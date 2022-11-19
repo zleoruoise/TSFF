@@ -290,7 +290,7 @@ def move_to_device(
 
 
 if __name__ == "__main__":
-    from  tsff.algorithm_module import train,parse_args,load_cfg,load_model
+    from  tsff.tools.train import train,parse_args,load_cfg,load_model
 
     args = parse_args()
     args.config = '/home/ycc/TSFF/tsff/algorithm_module/configs/pointformer/pointformer_960_CE_1.py'
