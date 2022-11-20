@@ -5,6 +5,8 @@ import numpy as np
 import warnings
 import argparse
 import matplotlib.pyplot as plt
+import torch
+from typing import Union, Dict, List, Tuple
 
 import time 
 from pathlib import Path
@@ -85,3 +87,37 @@ def render_mpl_table(data, col_width=3.0, row_height=0.625, font_size=14,
         else:
             cell.set_facecolor(row_colors[k[0]%len(row_colors) ])
     return ax.get_figure(), ax
+
+def move_to_device(
+    x: Union[
+        Dict[str, Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]]],
+        torch.Tensor,
+        List[torch.Tensor],
+        Tuple[torch.Tensor],
+    ],
+    device: Union[str, torch.DeviceObjType],
+) -> Union[
+    Dict[str, Union[torch.Tensor, List[torch.Tensor], Tuple[torch.Tensor]]],
+    torch.Tensor,
+    List[torch.Tensor],
+    Tuple[torch.Tensor],
+]:
+    """
+    Move object to device.
+    Args:
+        x (dictionary of list of tensors): object (e.g. dictionary) of tensors to move to device
+        device (Union[str, torch.DeviceObjType]): device, e.g. "cpu"
+    Returns:
+        x on targeted device
+    """
+    if isinstance(device, str):
+        device = torch.device(device)
+    if isinstance(x, dict):
+        for name in x.keys():
+            x[name] = move_to_device(x[name], device=device)
+    elif isinstance(x, torch.Tensor) and x.device != device:
+        x = x.to(device)
+    elif isinstance(x, (list, tuple)) and x[0].device != device:
+        x = [move_to_device(xi, device=device) for xi in x]
+    return x
+

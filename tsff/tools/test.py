@@ -6,12 +6,13 @@ import os
 import os.path as osp
 import time
 import warnings
+import pickle
 
 import glob
 from tensorboard import program
 
 from tsff.algorithm_module.train_object import train_object
-from ..utils import Config 
+from tsff.utils import Config 
 
 
 
@@ -117,8 +118,6 @@ def resume_train(args):
 
 def test(args,batch_size = 16,**kwargs):
     cfg = load_cfg(args)
-    cfg.dataset.batch_size = cfg.dataset.batch_size * 3
-    cfg.dataset.stop_val_randomization = False 
 
     model = load_model(cfg)
     model.prepare_learning()
@@ -127,7 +126,7 @@ def test(args,batch_size = 16,**kwargs):
     output = model.predict()
     
     with open('test_result.pkl','w') as f:
-        f.write(output)
+        pickle.dump(output,f)
 
 
 

@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 from tsff.algorithm_module.models.builder import build_model
 from tsff.data_module.utils.builder import build_dataset
+from tsff.utils.utils import move_to_device
 
 # custom
 
@@ -161,7 +162,7 @@ class train_object:
 
 
     
-    def predict(self,new_data):
+    def predict(self):
         # to-DO: implement load weights from ckpt
         # new_data should be implemented from real_time data obj
         # because we want to know the date and time, not just time idx, we use
@@ -169,8 +170,11 @@ class train_object:
         # online dataset should also pass dataframe  
         #new_preds = self.model.predict(new_data, mode = "prediction")
         new_preds =[]
-        for idx,new_data in enumerate(self.val_dataloader):
+        for new_data in tqdm(self.val_dataloader):
+            new_data = move_to_device(new_data,self.model.device)
             new_pred = self.model.prediction_step(new_data)
+            new_pred = new_pred.detach()
+            new_pred = move_to_device(new_pred,'cpu')
             new_preds.append(new_pred)
         return new_preds
 
@@ -305,4 +309,4 @@ if __name__ == "__main__":
     #evaluation_graph(time_idx,predictions,observations)
 
         
-        
+

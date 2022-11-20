@@ -171,8 +171,9 @@ class enc_model(pl.LightningModule):
         self.log("loss", loss)
         self.log_dict(val_metrics)
 
-    def prediction_step(self,batch,batch_idx):
-        x,y = batch
+    def prediction_step(self,batch):
+        x = {k:v for k,v in batch.items() if k != 'target'}
+        y = batch['target']
         y_hat = self(x)
         return y_hat
 

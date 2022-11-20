@@ -76,6 +76,7 @@ class dm_seq(Dataset):
         selected_cols = [],
         selected_headers = [],
         load_memory = None,
+        output_keys = []
 
     ):
         """
@@ -117,6 +118,8 @@ class dm_seq(Dataset):
 
         self.num_workers = num_workers
         self.memory_data = None
+        self.output_keys = output_keys
+
         if load_memory is not None:
             load_memory.update(start_time = self.start_date)
             load_memory.update(end_time = self.end_date)
@@ -249,17 +252,6 @@ class dm_seq(Dataset):
         if data['target'].shape[0] != 1:
             raise Exception("more than two errors")
         return data
-        #except:
-        #    return dict(x_data = torch.zeros((self.encoder_length-1,
-        #                                    len(self.pairs) * 5),
-        #                                    dtype = torch.float32), 
-        #                target = torch.zeros((1), dtype = torch.float32),
-        #                time_stamp = torch.zeros((self.encoder_length -1), dtype= torch.float32),
-        #                ignore_flag = True 
-        #                #coords = coords,
-        #                #num_points = num_points,
-        #                )
-
 
 
     def _collate_fn(
@@ -279,18 +271,12 @@ class dm_seq(Dataset):
         # lengths
 
         # there is an error when all batches are False
-        x_data = torch.stack([batch['x_data'] for batch in batches])# if batch['ignore_flag'] is not True]
-        # debug code
-        time_stamp = torch.stack([batch['time_stamp'] for batch in batches])# if batch['ignore_flag'] is not True])
-        #coords = torch.stack([batch['coords'] for batch in batches])
-        #num_points = torch.stack([batch['num_points'] for batch in batches])
-        y_data = torch.stack([batch['target'] for batch in batches])# if batch['ignore_flag'] is not True])
+        output_dict = {}
 
-        return dict(x_data = x_data, 
-                    y_data = y_data,
-                    time_stamp = time_stamp,)
-                    #coords = coords,
-                    #num_points = num_points)
+        for key in self.output_keys:
+            output_dict[key] = torch.stack([batch[key] for batch in batches if batch['ignore_flag'] == False])
+        
+        return output_dict
 
     def to_dataloader(
         self, train: bool = True, batch_sampler: Union[Sampler, str] = None, **kwargs
