@@ -323,3 +323,6 @@ python tsff/tools/test.py --config tsff/algorithm_module/configs/autoformer/auto
     --weights work_dirs/autoformer/epoch_1.pth
 ```
 
+## License
+
+`TSFF` is released under the [Apache 2.0 license](LICENSE).
