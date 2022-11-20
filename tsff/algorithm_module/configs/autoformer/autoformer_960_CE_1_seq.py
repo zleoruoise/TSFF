@@ -83,6 +83,7 @@ dataset = dict(
     load_memory = dict(type = 'load_memory_seq',pairs =  pairs,
                         data_path = "/home/ycc/TSFF/proc_data/",
                         ),
+    output_keys = ['target','x_data','time_stamp']
 )
 
 # trainer settings
